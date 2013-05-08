@@ -21,7 +21,7 @@ using HPMUInt64 = System.UInt64;
 using HPMError = System.Int32;
 using HPMString = System.String;
 
-namespace Hansoft.HsExp
+namespace Hansoft.HansoftExport
 {
     class HsExp
     {
@@ -42,14 +42,14 @@ namespace Hansoft.HsExp
 
         static string usage =
 @"Usage:
-hsexp -c<server>:<port>:<database>:<sdk user>:<sdk password> -p<project>:[a|s|b|q] -r<report>:<user>|-f<query> -o:<file>
+HansoftExport -c<server>:<port>:<database>:<sdk user>:<pwd> -p<project>:[a|s|b|q] -r<report>:<user>|-f<query> -o:<file>
 
-This utility exports the data of a Hansoft report or a Find query to Excel. All active columns in Hansoft will be exported
-regardless of what columns that has been defined to be visible in the report. There is no guruantueed column order but the
-order will be the same as long as the set of active columns remain unchanged. If any sorting or grouping is defined in the
-report this will also be ignored.
+This utility exports the data of a Hansoft report or a Find query to Excel. All active columns in Hansoft will be
+exported regardless of what columns that has been defined to be visible in the report. There is no guaranteed column
+order but the order will be the same as long as the set of active columns remain unchanged. If any sorting or grouping
+is defined in the report this will also be ignored.
 
-If any parameter values contain spaces, then the parameter value in question need to be double quouted. Colons are not
+If any parameter values contain spaces, then the parameter value in question need to be double quoted. Colons are not
 allowed in parameter values.
 
 Options -c, -p, and -o must always be specified and one of the options -r and-f must also be specified.
@@ -59,7 +59,7 @@ Options -c, -p, and -o must always be specified and one of the options -r and-f 
 <port>         : The listen port of the Hansoft server
 <database>     : Name of the Hansoft Database to get data from
 <sdk user>     : Name of the Hansoft SDK User account
-<sdk password> : Password of the Hansoft SDK User account
+<pwd>          : Password of the Hansoft SDK User account
 
 -p Specifies the Hansoft project and view to get data from
 <project>      : Name of the Hansoft project
@@ -74,23 +74,23 @@ q              : Get data from the Qaulity Assurance section
 
 -f Get the data of a Hansoft find query
 <find>         : The query
-Note: if the query expression contains double quoutes, they should be replaced with single quoutes when using this utility.
+Note: if the query expression contains double quotes, they should be replaced with single quotes when using this
+      utility.
 
 -o Specifies the name of the Excel output file 
 <file>         : File name
 
 
 Examples:
-Find all high priority bugs in the project MyProject in the database My Database where the server is running on the localmachine
-on port 50257, save the output to the file Bugs.xslx:
+Find all high priority bugs in the project MyProject in the database My Database where the server is running on the
+local machine on port 50257, save the output to the file Bugs.xslx:
 
-hsexp -clocalhost:50257:""My Database"":sdk:sdk -pMyProject:q -f""Bugpriority='High priority'"" -oBugs.xlsx
+HansoftExport -clocalhost:50257:""My Database"":sdk:sdk -pMyProject:q -f""Bugpriority='High priority'"" -oBugs.xlsx
 
-Export all items from the report PBL (defined by Manager Jim) in the product backlog of the project MyProject in the database
-My Database found on the server running on the local machine at port 50257:
+Export all items from the report PBL (defined by Manager Jim) in the product backlog of the project MyProject in the
+database My Database found on the server running on the local machine at port 50257:
 
-hsexp -clocalhost:50257:""My Database"":sdk:sdk -pMyProject:b -rPBL:""Manager Jim"" -oPBL.xlsx
-
+HansoftExport -clocalhost:50257:""My Database"":sdk:sdk -pMyProject:b -rPBL:""Manager Jim"" -oPBL.xlsx
 
 ";
 
@@ -171,7 +171,6 @@ hsexp -clocalhost:50257:""My Database"":sdk:sdk -pMyProject:b -rPBL:""Manager Ji
 
 
                     EHPMProjectDefaultColumn[] nonHidableColumns = SessionManager.Instance.Session.ProjectGetDefaultActivatedNonHidableColumns(projId, flag).m_Columns;
-                    // Need to add the status field for the schedule/agile view and also for the backlog project.
                     if (viewType == EHPMReportViewType.ScheduleMainProject || viewType == EHPMReportViewType.AgileMainProject || viewType == EHPMReportViewType.AgileBacklog)
                     {
                         Array.Resize(ref nonHidableColumns, nonHidableColumns.Length + 1);
@@ -288,8 +287,6 @@ hsexp -clocalhost:50257:""My Database"":sdk:sdk -pMyProject:b -rPBL:""Manager Ji
 
         static bool ParseArguments(string[] args)
         {
-//            Console.WriteLine("** Hit return to continue");
-//            Console.ReadLine();
             bool cOptionFound = false;
             bool pOptionFound = false;
             bool rOptionFound = false;

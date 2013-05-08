@@ -7,8 +7,8 @@
     <ProjectGuid>{8C64B384-A8C2-4CB3-88B1-FF47CB4F92B2}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>HsExp</RootNamespace>
-    <AssemblyName>HsExp</AssemblyName>
+    <RootNamespace>Hansoft</RootNamespace>
+    <AssemblyName>HansoftExport</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
@@ -54,11 +54,10 @@
   <PropertyGroup />
   <ItemGroup>
     <Reference Include="EPPlus">
-      <HintPath>..\..\EPPlus 3.1.2\EPPlus.dll</HintPath>
+      <HintPath>..\..\Projects\EPPlus 3.1.2\EPPlus.dll</HintPath>
     </Reference>
-    <Reference Include="HPMSdkManaged.x86, Version=1.0.4667.26940, Culture=neutral, PublicKeyToken=b6b6ff16a70279a6, processorArchitecture=x86">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\HansoftSDK_7_002\HPMSdkManaged.x86.dll</HintPath>
+    <Reference Include="HPMSdkManaged.x86">
+      <HintPath>..\..\Projects\HansoftSDK_7_002\HPMSdkManaged.x86.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -71,7 +70,7 @@
   <ItemGroup>
     <Compile Include="ExcelWriter.cs" />
     <Compile Include="HPMUtilities.cs" />
-    <Compile Include="HsExp.cs" />
+    <Compile Include="HansoftExport.cs" />
     <Compile Include="Logger.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SessionManager.cs" />
@@ -80,9 +79,6 @@
     <None Include="App.config">
       <SubType>Designer</SubType>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="Readme.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

@@ -5,12 +5,12 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("hsexp")]
+[assembly: AssemblyTitle("HansoftExport")]
 [assembly: AssemblyDescription("Utility to export Hansoft data to Excel from the command line")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Hansoft AB")]
-[assembly: AssemblyProduct("hsexp")]
-[assembly: AssemblyCopyright("Copyright Hansoft AB ©  2013")]
+[assembly: AssemblyProduct("HansoftExport")]
+[assembly: AssemblyCopyright("Copyright Svante Lidman ©  2013")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

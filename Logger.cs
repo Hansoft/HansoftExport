@@ -9,9 +9,6 @@ namespace Hansoft.SdkUtils
 {
     class Logger
     {
-        /// <summary>
-        /// Private constructor, this is a pure utility class
-        /// </summary>
         private Logger()
         {
         }

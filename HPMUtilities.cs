@@ -20,7 +20,6 @@ namespace Hansoft.SdkUtils
 {
     class HPMUtilities
     {
-        // This is a utility class so it should not be instantiated
         private HPMUtilities()
         {
         }
