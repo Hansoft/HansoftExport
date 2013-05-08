@@ -1,6 +1,8 @@
 HansoftExport
 =============
 
+Some change
+
 About this program
 This program is an Hansoft SDK client program that connects to the Hansoft server and exports a Hansoft report or find query to Excel.  This is similar
 to what you can do in the Hansoft client but this utility is primarily useful if you, for example using the Windows Task Scheduler, want to do
