@@ -19,7 +19,7 @@ The columns will be exported in the following order:
 
 Terms and conditions
 --------------------
-Hansoft Export by Svante Lidman (Hansoft AB) is licensed under what is known as an MIT License as stated in the file LICENSE.md.
+Hansoft Export by Svante Lidman (Hansoft AB) is licensed under what is known as an MIT License as stated in the [LICENSE.md](LICENSE).
 
 This program is not part of the official Hansoft product or subject to its license agreement.
 The program is provided as is and there is no obligation on Hansoft AB to provide support, update or enhance this program.
@@ -28,11 +28,14 @@ Questions can be sent to svante.lidman@hansoft.com and will be answered when oth
 Building the program
 --------------------
 The program can be built with the freely available Microsoft Visual Studio (Visual Studio Express 2012 for Desktop). The export to Excel is done
-with a library called EPPlus which is freely available here: http://epplus.codeplex.com/ and you will need to download that separately and change the references
-to the EPPlus DLL in the Visual Studio Project as needed. You will also need the Hansoft SDK yo be able to build the program, found here:
-http://hansoft.se/Solutions/sdk-integrations/download-sdk-integrations.html. You will also need to update the references to the appropriate 
+with [EPPlus] [1] which you will need to download separately and then change the reference
+to the EPPlus DLL in the Visual Studio Project as needed. You will also need the [Hansoft SDK] [2] to be able to build the program. You will
+also need to update the references to the appropriate 
 Hansoft SDK DLL in the Visual Studio project (typically: HPMSdkManaged.x86) and make sure that the Hansoft SDK DLL (typically HPMSdk.x86.dll) is
 in the same directory as your executable.
+
+[1]: http://hansoft.com/support/downloads/  "Hansoft SDK"
+[2]: http://epplus.codeplex.com/            "EPPlus"
 
 Usage
 -----
