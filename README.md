@@ -19,7 +19,7 @@ The columns will be exported in the following order:
 
 Terms and conditions
 --------------------
-Hansoft Export by Svante Lidman (Hansoft AB) is licensed under what is known as an MIT License as stated in the [LICENSE.md](LICENSE).
+Hansoft Export by Svante Lidman (Hansoft AB) is licensed under what is known as an MIT License as stated in the [LICENSE.md](LICENSE.md).
 
 This program is not part of the official Hansoft product or subject to its license agreement.
 The program is provided as is and there is no obligation on Hansoft AB to provide support, update or enhance this program.
@@ -34,12 +34,12 @@ also need to update the references to the appropriate
 Hansoft SDK DLL in the Visual Studio project (typically: HPMSdkManaged.x86) and make sure that the Hansoft SDK DLL (typically HPMSdk.x86.dll) is
 in the same directory as your executable.
 
-[1]: http://hansoft.com/support/downloads/  "Hansoft SDK"
-[2]: http://epplus.codeplex.com/            "EPPlus"
+[1]: http://epplus.codeplex.com/            "EPPlus"
+[2]: http://hansoft.com/support/downloads/  "Hansoft SDK"
 
 Usage
 -----
-HansoftExport -c<server>:<port>:<database>:<sdk user>:<sdk password> -p<project>:[a|s|b|q] -r<report>:<user>|-f<query> -o:<file>
+	HansoftExport -c<server>:<port>:<database>:<sdk user>:<sdk password> -p<project>:[a|s|b|q] -r<report>:<user>|-f<query> -o:<file>
 
 This utility exports the data of a Hansoft report or a Find query to Excel. All active columns in Hansoft will be exported
 regardless of what columns that has been defined to be visible in the report. There is no guruantueed column order but the
@@ -52,30 +52,29 @@ allowed in parameter values.
 Options -c, -p, and -o must always be specified and one of the options -r and-f must also be specified.
 
 -c Specifies what hansoft database to connect to and the sdk user to be used
-<server>       : IP or DNS name of the Hansoft server
-<port>         : The listen port of the Hansoft server
-<database>     : Name of the Hansoft Database to get data from
-<sdk user>     : Name of the Hansoft SDK User account
-<sdk password> : Password of the Hansoft SDK User account
+	<server>       : IP or DNS name of the Hansoft server
+	<port>         : The listen port of the Hansoft server
+	<database>     : Name of the Hansoft Database to get data from
+	<sdk user>     : Name of the Hansoft SDK User account
+	<sdk password> : Password of the Hansoft SDK User account
 
 -p Specifies the Hansoft project and view to get data from
-<project>      : Name of the Hansoft project
-a              : Get data from the Agile project view
-s              : Get data from the Scheduled project view
-b              : Get data from the Product Backlog
-q              : Get data from the Qaulity Assurance section
+	<project>      : Name of the Hansoft project
+	a              : Get data from the Agile project view
+	s              : Get data from the Scheduled project view
+	b              : Get data from the Product Backlog
+	q              : Get data from the Qaulity Assurance section
 
 -r Get the data of a Hansoft report
-<report>       : The name of the report
-<user>         : The name of the user that has created the report
+	<report>       : The name of the report
+	<user>         : The name of the user that has created the report
 
 -f Get the data of a Hansoft find query
-<find>         : The query
+	<find>         : The query
 Note: if the query expression contains double quoutes, they should be replaced with single quoutes when using this utility.
 
 -o Specifies the name of the Excel output file
-<file>         : File name
-
+	<file>         : File name
 
 Examples
 --------
