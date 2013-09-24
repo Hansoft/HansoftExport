@@ -226,12 +226,17 @@ HansoftExport -clocalhost:50257:""My Database"":sdk:sdk -pMyProject:b -rPBL:""Ma
                             string dbValue = SessionManager.Instance.Session.TaskGetCustomColumnData(item, SessionManager.Instance.Session.UtilGetColumnHash(customColumn));
                             if (customColumn.m_Type == EHPMProjectCustomColumnsColumnType.DateTime || customColumn.m_Type == EHPMProjectCustomColumnsColumnType.DateTimeWithTime)
                             {
-                                ulong ticksSince1970 = SessionManager.Instance.Session.UtilDecodeCustomColumnDateTimeValue(dbValue)*10;
-                                DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddTicks((long)ticksSince1970);
-                                if (customColumn.m_Type == EHPMProjectCustomColumnsColumnType.DateTime)
-                                    displayString = dateTime.ToShortDateString();
+                                if (dbValue != "")
+                                {
+                                    ulong ticksSince1970 = SessionManager.Instance.Session.UtilDecodeCustomColumnDateTimeValue(dbValue) * 10;
+                                    DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddTicks((long)ticksSince1970);
+                                    if (customColumn.m_Type == EHPMProjectCustomColumnsColumnType.DateTime)
+                                        displayString = dateTime.ToShortDateString();
+                                    else
+                                        displayString = dateTime.ToString();
+                                }
                                 else
-                                    displayString = dateTime.ToString();
+                                    displayString = "";
                             }
                             else if (customColumn.m_Type == EHPMProjectCustomColumnsColumnType.Resources)
                             {
@@ -253,7 +258,7 @@ HansoftExport -clocalhost:50257:""My Database"":sdk:sdk -pMyProject:b -rPBL:""Ma
                                             break;
                                     }
                                     if (i < resourceList.m_Resources.Length - 1)
-                                        displayString += ", ";
+                                        displayString += "; ";
                                 }
                             }
                             else if (customColumn.m_Type == EHPMProjectCustomColumnsColumnType.DropList)
@@ -268,7 +273,7 @@ HansoftExport -clocalhost:50257:""My Database"":sdk:sdk -pMyProject:b -rPBL:""Ma
                                 {
                                     displayString += HPMUtilities.DecodeDroplistValue(dbValues[i], customColumn.m_DropListItems);
                                     if (i < dbValues.Length - 1)
-                                        displayString += ", ";
+                                        displayString += "; ";
                                 }
                             }
                             else
