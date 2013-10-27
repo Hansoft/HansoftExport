@@ -32,11 +32,15 @@ with [EPPlus] [2] which you will need to download separately and then change the
 to the EPPlus DLL in the Visual Studio Project as needed. You will also need the [Hansoft SDK] [3] to be able to build the program. You will
 also need to update the references to the appropriate 
 Hansoft SDK DLL in the Visual Studio project (typically: HPMSdkManaged.x86) and make sure that the Hansoft SDK DLL (typically HPMSdk.x86.dll) is
-in the same directory as your executable.
+in the same directory as your executable. Further the program is also based on the [ObjectWrapper] [4] and [SimpleLogging] [5] libraries
+which are available on GitHub. You will need to download the source code for these libraries and build them and update the references from
+the HansoftExport project to the built libraries.
 
 [1]: http://www.microsoft.com/visualstudio/eng/products/visual-studio-express-for-windows-desktop  "Visual Studio Express 2012 for Desktop"
 [2]: http://epplus.codeplex.com/                                                                   "EPPlus"
 [3]: http://hansoft.com/support/downloads/                                                         "Hansoft SDK"
+[4]: http://github.com/Hansoft/Hansoft-ObjectWrapper                                               "ObjectWrapper"
+[5]: http://github.com/Hansoft/Hansoft-SimpleLogging                                               "SimpleLogging"
 
 Usage
 -----
