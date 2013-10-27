@@ -1,31 +1,23 @@
-﻿using HPMSdk;
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.IO;
 using System.Xml;
 
+using HPMSdk;
+using Hansoft.ObjectWrapper;
+using Hansoft.SimpleLogging;
 
-using Hansoft.SdkUtils;
-
-using HPMInt8 = System.SByte;
-using HPMUInt8 = System.Byte;
-using HPMInt16 = System.Int16;
-using HPMUInt16 = System.UInt16;
-using HPMInt32 = System.Int32;
-using HPMUInt32 = System.UInt32;
-using HPMInt64 = System.Int64;
-using HPMUInt64 = System.UInt64;
-using HPMError = System.Int32;
-using HPMString = System.String;
+using Hansoft.Excel;
 
 namespace Hansoft.HansoftExport
 {
     class HsExp
     {
         enum SearchSpec { Report, FindQuery }
+
+        enum SortingSpec { None, Priority, Hierarchy }
 
         static string sdkUser;
         static string sdkUserPwd;
@@ -39,6 +31,8 @@ namespace Hansoft.HansoftExport
         static EHPMReportViewType viewType;
         static string outputFileName;
         static SearchSpec searchSpec;
+        static SortingSpec sortingSpec = SortingSpec.None;
+        static List<Task> allTasksInViewFlattened;
 
         static string usage =
 @"Usage:
@@ -52,7 +46,8 @@ is defined in the report this will also be ignored.
 If any parameter values contain spaces, then the parameter value in question need to be double quoted. Colons are not
 allowed in parameter values.
 
-Options -c, -p, and -o must always be specified and one of the options -r and-f must also be specified.
+Options -c, -p, and -o must always be specified and one of the options -r and-f must also be specified. The -s option
+is optional.
 
 -c Specifies what hansoft database to connect to and the sdk user to be used
 <server>       : IP or DNS name of the Hansoft server
@@ -96,6 +91,7 @@ HansoftExport -clocalhost:50257:""My Database"":sdk:sdk -pMyProject:b -rPBL:""Ma
 
         static void Main(string[] args)
         {
+            ILogger logger = new ConsoleLogger();
             try
             {
                 if (ParseArguments(args))
@@ -110,7 +106,7 @@ HansoftExport -clocalhost:50257:""My Database"":sdk:sdk -pMyProject:b -rPBL:""Ma
                         }
                         catch (Exception e)
                         {
-                            Logger.Exception(e);
+                            logger.Exception(e);
                         }
                         finally
                         {
@@ -119,49 +115,53 @@ HansoftExport -clocalhost:50257:""My Database"":sdk:sdk -pMyProject:b -rPBL:""Ma
                     }
                     else
                     {
-                        Logger.Warning("Could not open connection to Hansoft");
+                        logger.Warning("Could not open connection to Hansoft");
                     }
                 }
                 else
-                    Logger.DisplayMessage(usage);
+                    logger.Information(usage);
             }
             catch (Exception e)
             {
-                Logger.Exception(e);
+                logger.Exception(e);
             }
         }
 
         static void DoExport()
         {            
-            HPMUniqueID projId = HPMUtilities.FindProject(projectName);
+            Project  project = HPMUtilities.FindProject(projectName);
+            ProjectView projectView = project.Schedule;
             if (viewType == EHPMReportViewType.AgileBacklog)
-                projId = SessionManager.Instance.Session.ProjectUtilGetBacklog(projId);
+                projectView = project.ProductBacklog;
             else if (viewType == EHPMReportViewType.AllBugsInProject)
-                projId = SessionManager.Instance.Session.ProjectUtilGetQA(projId);
-            if (projId != null)
+                projectView = project.BugTracker;
+            if (projectView != null)
             {
-                HPMString findString;
+                string findString;
                 if (searchSpec == SearchSpec.Report)
                 {
-                    HPMUniqueID reportUserId = HPMUtilities.FindUser(reportUserName);
-                    if (reportUserId == null)
+                    User reportUser = HPMUtilities.GetUsers().Find(u => u.Name == reportUserName);
+                    if (reportUser == null)
                         throw new ArgumentException("Could not find the user " + reportUserName);
-                    HPMReport report = HPMUtilities.FindReport(projId, reportUserId, reportName);
+                    HPMReport report = FindReport(projectView.UniqueID, reportUser.UniqueID, reportName);
                     if (report == null)
                         throw new ArgumentException("Could not find the report " + reportName + " for user " + reportUserName + " in project " + projectName);
-                    findString = SessionManager.Instance.Session.UtilConvertReportToFindString(report, projId, viewType);
+                    findString = SessionManager.Session.UtilConvertReportToFindString(report, projectView.UniqueID, viewType);
                 }
                 else
                 {
                     findString = findQuery.Replace('\'', '"');
                 }
-                HPMFindContext findContext = new HPMFindContext();
-                HPMFindContextData data = SessionManager.Instance.Session.UtilPrepareFindContext(findString, projId, viewType, findContext);
-                HPMTaskEnum items = SessionManager.Instance.Session.TaskFind(data, EHPMTaskFindFlag.None);
+
+                List<Task> tasks = projectView.Find(findString);
+
                 ExcelWriter excelWriter = new ExcelWriter();
-                if (items.m_Tasks.Length > 0)
+                if (tasks.Count > 0)
                 {
-                           EHPMProjectGetDefaultActivatedNonHidableColumnsFlag flag;
+                    allTasksInViewFlattened = new List<Task>(projectView.DeepChildren.Cast<Task>());
+                    tasks.Sort(CompareItemsByHierarchyIndex);
+
+                    EHPMProjectGetDefaultActivatedNonHidableColumnsFlag flag;
                     if (viewType == EHPMReportViewType.ScheduleMainProject)
                         flag = EHPMProjectGetDefaultActivatedNonHidableColumnsFlag.ScheduledMode;
                     else if (viewType == EHPMReportViewType.AgileMainProject)
@@ -170,40 +170,28 @@ HansoftExport -clocalhost:50257:""My Database"":sdk:sdk -pMyProject:b -rPBL:""Ma
                         flag = EHPMProjectGetDefaultActivatedNonHidableColumnsFlag.None;
 
 
-                    EHPMProjectDefaultColumn[] nonHidableColumns = SessionManager.Instance.Session.ProjectGetDefaultActivatedNonHidableColumns(projId, flag).m_Columns;
+                    EHPMProjectDefaultColumn[] nonHidableColumns = SessionManager.Session.ProjectGetDefaultActivatedNonHidableColumns(projectView.UniqueID, flag).m_Columns;
                     if (viewType == EHPMReportViewType.ScheduleMainProject || viewType == EHPMReportViewType.AgileMainProject || viewType == EHPMReportViewType.AgileBacklog)
                     {
                         Array.Resize(ref nonHidableColumns, nonHidableColumns.Length + 1);
                         nonHidableColumns[nonHidableColumns.Length - 1] = EHPMProjectDefaultColumn.ItemStatus;
                     }
-                    EHPMProjectDefaultColumn[] activeBuiltinColumns = SessionManager.Instance.Session.ProjectGetDefaultActivatedColumns(projId).m_Columns;
-                    HPMProjectCustomColumnsColumn[] activeCustomColumns = SessionManager.Instance.Session.ProjectCustomColumnsGet(projId).m_ShowingColumns;
+                    EHPMProjectDefaultColumn[] activeBuiltinColumns = SessionManager.Session.ProjectGetDefaultActivatedColumns(projectView.UniqueID).m_Columns;
+                    HPMProjectCustomColumnsColumn[] activeCustomColumns = SessionManager.Session.ProjectCustomColumnsGet(projectView.UniqueID).m_ShowingColumns;
                       
                     ExcelWriter.Row row = excelWriter.AddRow();
 
                     foreach (EHPMProjectDefaultColumn builtinCol in nonHidableColumns)
-                        row.AddCell(HPMUtilities.GetColumnName(builtinCol));
+                        row.AddCell(GetColumnName(builtinCol));
                     foreach (EHPMProjectDefaultColumn builtinCol in activeBuiltinColumns)
-                        row.AddCell(HPMUtilities.GetColumnName(builtinCol));
+                        row.AddCell(GetColumnName(builtinCol));
                     foreach (HPMProjectCustomColumnsColumn customColumn in activeCustomColumns)
-                        row.AddCell(HPMUtilities.GetColumnName(projId, customColumn));
+                        row.AddCell(GetColumnName(projectView.UniqueID, customColumn));
 
                     HPMColumnTextOptions options = new HPMColumnTextOptions();
                     options.m_bForDisplay = true;
-                    foreach (HPMUniqueID item in items.m_Tasks)
+                    foreach (Task item in tasks)
                     {
-                        string description = SessionManager.Instance.Session.TaskGetDescription(item);
-                        HPMUniqueID itemRef;
-                        if (viewType == EHPMReportViewType.ScheduleMainProject || viewType == EHPMReportViewType.AgileMainProject)
-                        {
-                            itemRef = SessionManager.Instance.Session.TaskGetProxy(item);
-                            if (!itemRef.IsValid())
-                                itemRef = SessionManager.Instance.Session.TaskGetMainReference(item);
-                        }
-                        else
-                        {
-                            itemRef = SessionManager.Instance.Session.TaskGetMainReference(item);
-                        }
 
                         row = excelWriter.AddRow();
                         foreach (EHPMProjectDefaultColumn builtinCol in nonHidableColumns)
@@ -211,76 +199,17 @@ HansoftExport -clocalhost:50257:""My Database"":sdk:sdk -pMyProject:b -rPBL:""Ma
                             HPMColumn column = new HPMColumn();
                             column.m_ColumnType = EHPMColumnType.DefaultColumn;
                             column.m_ColumnID = (uint)builtinCol;
-                            row.AddCell(SessionManager.Instance.Session.TaskRefGetColumnText(itemRef, column, options));
+                            row.AddCell(SessionManager.Session.TaskRefGetColumnText(item.UniqueID, column, options));
                         }
                         foreach (EHPMProjectDefaultColumn builtinCol in activeBuiltinColumns)
                         {
                             HPMColumn column = new HPMColumn();
                             column.m_ColumnType = EHPMColumnType.DefaultColumn;
                             column.m_ColumnID = (uint)builtinCol;
-                            row.AddCell(SessionManager.Instance.Session.TaskRefGetColumnText(itemRef, column, options));
+                            row.AddCell(SessionManager.Session.TaskRefGetColumnText(item.UniqueID, column, options));
                         }
                         foreach (HPMProjectCustomColumnsColumn customColumn in activeCustomColumns)
-                        {
-                            string displayString;
-                            string dbValue = SessionManager.Instance.Session.TaskGetCustomColumnData(item, SessionManager.Instance.Session.UtilGetColumnHash(customColumn));
-                            if (customColumn.m_Type == EHPMProjectCustomColumnsColumnType.DateTime || customColumn.m_Type == EHPMProjectCustomColumnsColumnType.DateTimeWithTime)
-                            {
-                                if (dbValue != "")
-                                {
-                                    ulong ticksSince1970 = SessionManager.Instance.Session.UtilDecodeCustomColumnDateTimeValue(dbValue) * 10;
-                                    DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddTicks((long)ticksSince1970);
-                                    if (customColumn.m_Type == EHPMProjectCustomColumnsColumnType.DateTime)
-                                        displayString = dateTime.ToShortDateString();
-                                    else
-                                        displayString = dateTime.ToString();
-                                }
-                                else
-                                    displayString = "";
-                            }
-                            else if (customColumn.m_Type == EHPMProjectCustomColumnsColumnType.Resources)
-                            {
-                                displayString ="";
-                                HPMResourceDefinitionList resourceList = SessionManager.Instance.Session.UtilDecodeCustomColumnResourcesValue(dbValue);
-                                for (int i = 0; i < resourceList.m_Resources.Length; i += 1)
-                                {
-                                    HPMResourceDefinition resourceDefinition = resourceList.m_Resources[i];
-                                    switch (resourceDefinition.m_GroupingType)
-                                    {
-                                        case EHPMResourceGroupingType.AllProjectMembers:
-                                            displayString += "All Project Members";
-                                            break;
-                                        case EHPMResourceGroupingType.Resource:
-                                            displayString += HPMUtilities.GetUserName(resourceDefinition.m_ID);
-                                            break;
-                                        case EHPMResourceGroupingType.ResourceGroup:
-                                            displayString += HPMUtilities.GetGroupName(resourceDefinition.m_ID);
-                                            break;
-                                    }
-                                    if (i < resourceList.m_Resources.Length - 1)
-                                        displayString += "; ";
-                                }
-                            }
-                            else if (customColumn.m_Type == EHPMProjectCustomColumnsColumnType.DropList)
-                            {
-                                displayString = HPMUtilities.DecodeDroplistValue(dbValue, customColumn.m_DropListItems);
-                            }
-                            else if (customColumn.m_Type == EHPMProjectCustomColumnsColumnType.MultiSelectionDropList)
-                            {
-                                displayString = "";
-                                string[] dbValues = dbValue.Split(new char[] { ';' });
-                                for (int i = 0; i < dbValues.Length; i += 1)
-                                {
-                                    displayString += HPMUtilities.DecodeDroplistValue(dbValues[i], customColumn.m_DropListItems);
-                                    if (i < dbValues.Length - 1)
-                                        displayString += "; ";
-                                }
-                            }
-                            else
-                                displayString = dbValue;
-
-                            row.AddCell(displayString);
-                        }
+                            row.AddCell(item.GetCustomColumnValue(customColumn).ToString());
                     }
                 }
                 excelWriter.SaveAsOfficeOpenXml(outputFileName);
@@ -289,6 +218,32 @@ HansoftExport -clocalhost:50257:""My Database"":sdk:sdk -pMyProject:b -rPBL:""Ma
                 throw new ArgumentException("Could not find the project " + projectName);
         }
 
+        public static int CompareItemsByHierarchyIndex(Task t1, Task t2)
+        {
+            return allTasksInViewFlattened.FindIndex(ii => ii.UniqueID.m_ID == t1.UniqueID.m_ID) - allTasksInViewFlattened.FindIndex(ii => ii.UniqueID.m_ID == t2.UniqueID.m_ID);
+        }
+
+        public static HPMReport FindReport(HPMUniqueID projId, HPMUniqueID reportUserId, string reportName)
+        {
+            HPMReports reports = SessionManager.Session.ProjectGetReports(projId, reportUserId);
+            foreach (HPMReport report in reports.m_Reports)
+            {
+                if (report.m_Name == reportName)
+                    return report;
+            }
+            return null;
+        }
+
+        public static string GetColumnName(HPMUniqueID projId, HPMProjectCustomColumnsColumn column)
+        {
+            return column.m_Name;
+        }
+
+        public static string GetColumnName(EHPMProjectDefaultColumn columnId)
+        {
+            HPMUntranslatedString columnName = SessionManager.Session.UtilGetColumnName(columnId);
+            return SessionManager.Session.LocalizationTranslateString(SessionManager.Session.LocalizationGetDefaultLanguage(), columnName);
+        }
 
         static bool ParseArguments(string[] args)
         {

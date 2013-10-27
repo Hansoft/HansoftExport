@@ -4,7 +4,7 @@ using System.Xml;
 using System.Xml.Schema;
 using OfficeOpenXml;
 
-namespace Hansoft.SdkUtils
+namespace Hansoft.Excel
 {
     public class ExcelWriter
     {
