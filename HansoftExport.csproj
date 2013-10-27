@@ -63,10 +63,11 @@
     </Reference>
     <Reference Include="ObjectWrapper, Version=1.0.0.0, Culture=neutral, processorArchitecture=x86">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\Projects\Jean\Hansoft-Jean-Jean\bin\x86\Release\ObjectWrapper.dll</HintPath>
+      <HintPath>..\Hansoft-ObjectWrapper\bin\x86\Release\ObjectWrapper.dll</HintPath>
     </Reference>
-    <Reference Include="SimpleLogging">
-      <HintPath>..\..\Projects\Jean\Hansoft-Jean-Jean\bin\Release\SimpleLogging.dll</HintPath>
+    <Reference Include="SimpleLogging, Version=1.0.0.0, Culture=neutral, processorArchitecture=x86">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\Hansoft-SimpleLogging\bin\x86\Release\SimpleLogging.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
