@@ -31,17 +31,25 @@ namespace Hansoft.HansoftExport
         static EHPMReportViewType viewType;
         static string outputFileName;
         static SearchSpec searchSpec;
-        static SortingSpec sortingSpec = SortingSpec.None;
+        static DateTime firstDate;
+        static DateTime lastDate;
+        static bool hOptionFound = false;
         static List<Task> allTasksInViewFlattened;
 
         static string usage =
 @"Usage:
-HansoftExport -c<server>:<port>:<database>:<sdk user>:<pwd> -p<project>:[a|s|b|q] -r<report>:<user>|-f<query> -o:<file>
+HansoftExport -c<server>:<port>:<database>:<sdk user>:<pwd> -p<project>:(a|s|b|q) -r<report>:<user>|-f<query> [-h<first>[:<last>]] -o:<file>
 
-This utility exports the data of a Hansoft report or a Find query to Excel. All active columns in Hansoft will be
-exported regardless of what columns that has been defined to be visible in the report. There is no guaranteed column
-order but the order will be the same as long as the set of active columns remain unchanged. If any sorting or grouping
-is defined in the report this will also be ignored.
+This utility exports the data of a Hansoft report or a Find query to Excel. 
+
+Unless the -h option is specified, all
+active columns in Hansoft will be exported regardless of what columns that has been defined to be visible in the
+report. There is no guaranteed column order but the order will be the same as long as the set of active columns
+remain unchanged. If any sorting or grouping is defined in the report this will also be ignored.
+
+if the -h option is specified then aggregated historical data vill be exported. Gibven the items returned by the
+specified report or find query, the total number of items in each respective state (Not done, In progress,
+Completed and so on) will be output for each day between the first/last dates given as parameters to the option.
 
 If any parameter values contain spaces, then the parameter value in question need to be double quoted. Colons are not
 allowed in parameter values.
@@ -71,6 +79,11 @@ q              : Get data from the Qaulity Assurance section
 <find>         : The query
 Note: if the query expression contains double quotes, they should be replaced with single quotes when using this
       utility.
+
+-h Output a history of item states per day
+<first>        : The first date to include
+<last>         : The last date to include, defaults to the current day.
+Note: Dates should be formatted according to your current locale, e.g. {%1} for the current day.
 
 -o Specifies the name of the Excel output file 
 <file>         : File name
@@ -158,58 +171,83 @@ HansoftExport -clocalhost:50257:""My Database"":sdk:sdk -pMyProject:b -rPBL:""Ma
                 ExcelWriter excelWriter = new ExcelWriter();
                 if (tasks.Count > 0)
                 {
-                    allTasksInViewFlattened = new List<Task>(projectView.DeepChildren.Cast<Task>());
-                    tasks.Sort(CompareItemsByHierarchyIndex);
-
-                    EHPMProjectGetDefaultActivatedNonHidableColumnsFlag flag;
-                    if (viewType == EHPMReportViewType.ScheduleMainProject)
-                        flag = EHPMProjectGetDefaultActivatedNonHidableColumnsFlag.ScheduledMode;
-                    else if (viewType == EHPMReportViewType.AgileMainProject)
-                        flag = EHPMProjectGetDefaultActivatedNonHidableColumnsFlag.AgileMode;
-                    else
-                        flag = EHPMProjectGetDefaultActivatedNonHidableColumnsFlag.None;
-
-
-                    EHPMProjectDefaultColumn[] nonHidableColumns = SessionManager.Session.ProjectGetDefaultActivatedNonHidableColumns(projectView.UniqueID, flag).m_Columns;
-                    if (viewType == EHPMReportViewType.ScheduleMainProject || viewType == EHPMReportViewType.AgileMainProject || viewType == EHPMReportViewType.AgileBacklog)
+                    if (!hOptionFound)
                     {
-                        Array.Resize(ref nonHidableColumns, nonHidableColumns.Length + 1);
-                        nonHidableColumns[nonHidableColumns.Length - 1] = EHPMProjectDefaultColumn.ItemStatus;
-                    }
-                    EHPMProjectDefaultColumn[] activeBuiltinColumns = SessionManager.Session.ProjectGetDefaultActivatedColumns(projectView.UniqueID).m_Columns;
-                    HPMProjectCustomColumnsColumn[] activeCustomColumns = SessionManager.Session.ProjectCustomColumnsGet(projectView.UniqueID).m_ShowingColumns;
-                      
-                    ExcelWriter.Row row = excelWriter.AddRow();
+                        allTasksInViewFlattened = new List<Task>(projectView.DeepChildren.Cast<Task>());
+                        tasks.Sort(CompareItemsByHierarchyIndex);
 
-                    foreach (EHPMProjectDefaultColumn builtinCol in nonHidableColumns)
-                        row.AddCell(GetColumnName(builtinCol));
-                    foreach (EHPMProjectDefaultColumn builtinCol in activeBuiltinColumns)
-                        row.AddCell(GetColumnName(builtinCol));
-                    foreach (HPMProjectCustomColumnsColumn customColumn in activeCustomColumns)
-                        row.AddCell(GetColumnName(projectView.UniqueID, customColumn));
+                        EHPMProjectGetDefaultActivatedNonHidableColumnsFlag flag;
+                        if (viewType == EHPMReportViewType.ScheduleMainProject)
+                            flag = EHPMProjectGetDefaultActivatedNonHidableColumnsFlag.ScheduledMode;
+                        else if (viewType == EHPMReportViewType.AgileMainProject)
+                            flag = EHPMProjectGetDefaultActivatedNonHidableColumnsFlag.AgileMode;
+                        else
+                            flag = EHPMProjectGetDefaultActivatedNonHidableColumnsFlag.None;
 
-                    HPMColumnTextOptions options = new HPMColumnTextOptions();
-                    options.m_bForDisplay = true;
-                    foreach (Task item in tasks)
-                    {
 
-                        row = excelWriter.AddRow();
+                        EHPMProjectDefaultColumn[] nonHidableColumns = SessionManager.Session.ProjectGetDefaultActivatedNonHidableColumns(projectView.UniqueID, flag).m_Columns;
+                        if (viewType == EHPMReportViewType.ScheduleMainProject || viewType == EHPMReportViewType.AgileMainProject || viewType == EHPMReportViewType.AgileBacklog)
+                        {
+                            Array.Resize(ref nonHidableColumns, nonHidableColumns.Length + 1);
+                            nonHidableColumns[nonHidableColumns.Length - 1] = EHPMProjectDefaultColumn.ItemStatus;
+                        }
+                        EHPMProjectDefaultColumn[] activeBuiltinColumns = SessionManager.Session.ProjectGetDefaultActivatedColumns(projectView.UniqueID).m_Columns;
+                        HPMProjectCustomColumnsColumn[] activeCustomColumns = SessionManager.Session.ProjectCustomColumnsGet(projectView.UniqueID).m_ShowingColumns;
+
+                        ExcelWriter.Row row = excelWriter.AddRow();
+
                         foreach (EHPMProjectDefaultColumn builtinCol in nonHidableColumns)
-                        {
-                            HPMColumn column = new HPMColumn();
-                            column.m_ColumnType = EHPMColumnType.DefaultColumn;
-                            column.m_ColumnID = (uint)builtinCol;
-                            row.AddCell(SessionManager.Session.TaskRefGetColumnText(item.UniqueID, column, options));
-                        }
+                            row.AddCell(GetColumnName(builtinCol));
                         foreach (EHPMProjectDefaultColumn builtinCol in activeBuiltinColumns)
-                        {
-                            HPMColumn column = new HPMColumn();
-                            column.m_ColumnType = EHPMColumnType.DefaultColumn;
-                            column.m_ColumnID = (uint)builtinCol;
-                            row.AddCell(SessionManager.Session.TaskRefGetColumnText(item.UniqueID, column, options));
-                        }
+                            row.AddCell(GetColumnName(builtinCol));
                         foreach (HPMProjectCustomColumnsColumn customColumn in activeCustomColumns)
-                            row.AddCell(item.GetCustomColumnValue(customColumn).ToString());
+                            row.AddCell(GetColumnName(projectView.UniqueID, customColumn));
+
+                        HPMColumnTextOptions options = new HPMColumnTextOptions();
+                        options.m_bForDisplay = true;
+                        foreach (Task item in tasks)
+                        {
+
+                            row = excelWriter.AddRow();
+                            foreach (EHPMProjectDefaultColumn builtinCol in nonHidableColumns)
+                            {
+                                HPMColumn column = new HPMColumn();
+                                column.m_ColumnType = EHPMColumnType.DefaultColumn;
+                                column.m_ColumnID = (uint)builtinCol;
+                                row.AddCell(SessionManager.Session.TaskRefGetColumnText(item.UniqueID, column, options));
+                            }
+                            foreach (EHPMProjectDefaultColumn builtinCol in activeBuiltinColumns)
+                            {
+                                HPMColumn column = new HPMColumn();
+                                column.m_ColumnType = EHPMColumnType.DefaultColumn;
+                                column.m_ColumnID = (uint)builtinCol;
+                                row.AddCell(SessionManager.Session.TaskRefGetColumnText(item.UniqueID, column, options));
+                            }
+                            foreach (HPMProjectCustomColumnsColumn customColumn in activeCustomColumns)
+                                row.AddCell(item.GetCustomColumnValue(customColumn).ToString());
+                        }
+                    }
+                    else
+                    {
+
+                        List<StatusAggregate> statusChangeHistory = BuildStatusChangeHistory(tasks, firstDate, lastDate);
+                        ExcelWriter.Row row = excelWriter.AddRow();
+                        row.AddCell("Date");
+                        row.AddCell("Blocked");
+                        row.AddCell("Completed");
+                        row.AddCell("To be deleted");
+                        row.AddCell("In progress");
+                        row.AddCell("Not done");
+                        foreach (StatusAggregate statusAggregate in statusChangeHistory)
+                        {
+                            row = excelWriter.AddRow();
+                            row.AddCell(statusAggregate.Day.ToShortDateString());
+                            row.AddCell(statusAggregate.NumberOfBlockedItems.ToString());
+                            row.AddCell(statusAggregate.NumberOfCompletedItems.ToString());
+                            row.AddCell(statusAggregate.NumberOfDeletedItems.ToString());
+                            row.AddCell(statusAggregate.NumberOfInProgressItems.ToString());
+                            row.AddCell(statusAggregate.NumberOfNotDoneItems.ToString());
+                        }
                     }
                 }
                 excelWriter.SaveAsOfficeOpenXml(outputFileName);
@@ -244,6 +282,159 @@ HansoftExport -clocalhost:50257:""My Database"":sdk:sdk -pMyProject:b -rPBL:""Ma
             HPMUntranslatedString columnName = SessionManager.Session.UtilGetColumnName(columnId);
             return SessionManager.Session.LocalizationTranslateString(SessionManager.Session.LocalizationGetDefaultLanguage(), columnName);
         }
+
+        class StatusChange
+        {
+            internal Task Task;
+            internal DateTime DateTime;
+            internal EHPMTaskStatus ToStatus;
+        }
+
+        class StatusAggregate
+        {
+            internal DateTime Day;
+            internal int NumberOfBlockedItems;
+            internal int NumberOfCompletedItems;
+            internal int NumberOfDeletedItems;
+            internal int NumberOfInProgressItems;
+            internal int NumberOfNotDoneItems;
+        }
+
+        private static List<StatusAggregate> BuildStatusChangeHistory(List<Task> tasks, DateTime firstDay, DateTime lastDay)
+        {
+            List<StatusAggregate> statusChangeHistory = new List<StatusAggregate>();
+            List<StatusAggregate> statusChangeHistoryPruned = new List<StatusAggregate>();
+            Dictionary<Task, EHPMTaskStatus> currentTaskStatuses = new Dictionary<Task, EHPMTaskStatus>();
+            List<StatusChange> statusChanges = new List<StatusChange>();
+
+            HPMDataHistoryGetHistoryParameters pars = new HPMDataHistoryGetHistoryParameters();
+            pars.m_FieldID = EHPMStatisticsField.NoStatistics;
+            pars.m_FieldData = 0;
+            pars.m_DataIdent0 = EHPMStatisticsScope.NoStatisticsScope;
+            pars.m_DataIdent1 = 0;
+
+            // Loop through all once to intiate fetching of the histories from the server
+            foreach (Task task in tasks)
+            {
+                HPMDataHistory history = SessionManager.Session.DataHistoryGetHistory(pars);
+                pars.m_DataID = task.UniqueTaskID;
+            }
+
+            // Now we start to loop over them again and hope to have data available
+            foreach (Task task in tasks)
+            {
+                int maxAttempts = 100;
+                int nAttempts = 0;
+                pars.m_DataID = task.UniqueTaskID;
+                HPMDataHistory history = SessionManager.Session.DataHistoryGetHistory(pars);
+                while (history == null && nAttempts < maxAttempts)
+                {
+                    System.Threading.Thread.Sleep(100);
+                    history = SessionManager.Session.DataHistoryGetHistory(pars);
+                    nAttempts += 1;
+                }
+                for (uint i=0; i<history.m_HistoryEntries.Length; i+=1)
+                {
+                    HPMDataHistoryEntry entry = history.m_HistoryEntries[i];
+                    // Check if it is the status field
+                    if (entry.m_FieldID == 15 && (entry.m_EntryType == EHPMDataHistoryEntryType.FieldChanged || entry.m_EntryType == EHPMDataHistoryEntryType.FieldCreated))
+                    {
+                        if (entry.m_bHasDataRecorded)
+                        {
+                            StatusChange statusChange = new StatusChange();
+                            statusChange.DateTime = HPMUtilities.FromHPMDateTime(entry.m_Time);
+                            statusChange.Task = task;
+                            HPMVariantData data = SessionManager.Session.DataHistoryGetEntryData(history, i);
+                            int value = SessionManager.Session.VariantDecode_HPMInt32(data);
+                            EHPMTaskStatus status = (EHPMTaskStatus)value;
+                            statusChange.ToStatus = status;
+                            statusChanges.Add(statusChange);
+                        }
+                    }
+                }
+                currentTaskStatuses[task] = EHPMTaskStatus.NoStatus;
+            }
+
+            // Sort the statuschanges from the oldest to the newest
+            statusChanges.Sort(new StatusChangeComparer());
+
+            DateTime firstDayWithStatusChange = statusChanges.Count>0 ? statusChanges[0].DateTime.Date : DateTime.MaxValue;
+            DateTime lastDayWithStatusChange = statusChanges.Count>0 ? statusChanges[statusChanges.Count - 1].DateTime.Date : DateTime.MinValue;
+
+            DateTime currentDay = DateTime.Now.Date;
+            TimeSpan loggedSpan = lastDayWithStatusChange - firstDayWithStatusChange;
+            int nLoggedDays = loggedSpan.Days + 1;
+            int changeIndex = 0;
+            for (DateTime iDate = firstDayWithStatusChange; iDate <= lastDayWithStatusChange; iDate = iDate.AddDays(1))
+            {
+                while (changeIndex < statusChanges.Count && statusChanges[changeIndex].DateTime.Date == iDate)
+                {
+                    currentTaskStatuses[statusChanges[changeIndex].Task] = statusChanges[changeIndex].ToStatus;
+                    changeIndex +=1;
+                }
+                StatusAggregate statusAggregate = new StatusAggregate();
+                statusAggregate.Day = iDate;
+                statusAggregate.NumberOfBlockedItems = currentTaskStatuses.Values.Count(t => t == EHPMTaskStatus.Blocked);
+                statusAggregate.NumberOfCompletedItems = currentTaskStatuses.Values.Count(t => t == EHPMTaskStatus.Completed);
+                statusAggregate.NumberOfDeletedItems = currentTaskStatuses.Values.Count(t => t == EHPMTaskStatus.Deleted);
+                statusAggregate.NumberOfInProgressItems = currentTaskStatuses.Values.Count(t => t == EHPMTaskStatus.InProgress);
+                statusAggregate.NumberOfNotDoneItems = currentTaskStatuses.Values.Count(t => t == EHPMTaskStatus.NotDone);
+                statusChangeHistory.Add(statusAggregate);
+            }
+            TimeSpan returnedSpan = lastDay - firstDay;
+            int nReturnedDays = returnedSpan.Days+1;
+
+            for (DateTime iDate = firstDay; iDate < firstDayWithStatusChange; iDate = iDate.AddDays(1))
+            {
+                StatusAggregate statusAggregate = new StatusAggregate();
+                statusAggregate.Day = iDate;
+                statusAggregate.NumberOfBlockedItems = 0;
+                statusAggregate.NumberOfCompletedItems = 0;
+                statusAggregate.NumberOfDeletedItems = 0;
+                statusAggregate.NumberOfInProgressItems = 0;
+                statusAggregate.NumberOfNotDoneItems = 0;
+                statusChangeHistoryPruned.Add(statusAggregate);
+            }
+            foreach (StatusAggregate statusAggregate in statusChangeHistory)
+            {
+                if (statusAggregate.Day > lastDay)
+                    break;
+                if (statusAggregate.Day >= firstDay)
+                    statusChangeHistoryPruned.Add(statusAggregate);
+            }
+            if (lastDay > lastDayWithStatusChange)
+            {
+                StatusAggregate prototype = statusChangeHistory.Last();
+                for (DateTime iDate = lastDayWithStatusChange.AddDays(1); iDate <= lastDay; iDate = iDate.AddDays(1))
+                {
+                    StatusAggregate clone = new StatusAggregate();
+                    clone.Day = iDate;
+                    clone.NumberOfBlockedItems = prototype.NumberOfBlockedItems;
+                    clone.NumberOfCompletedItems = prototype.NumberOfCompletedItems;
+                    clone.NumberOfDeletedItems = prototype.NumberOfDeletedItems;
+                    clone.NumberOfInProgressItems = prototype.NumberOfInProgressItems;
+                    clone.NumberOfNotDoneItems = prototype.NumberOfNotDoneItems;
+                    statusChangeHistoryPruned.Add(clone);
+                }
+            }
+            return statusChangeHistoryPruned;
+        }
+
+
+        private class StatusChangeComparer : IComparer<StatusChange>
+        {
+            public int Compare(StatusChange x, StatusChange y)
+            {
+                if (x.DateTime < y.DateTime)
+                    return -1;
+                else if (x.DateTime > y.DateTime)
+                    return 1;
+                else
+                    return 0;
+            }
+        }
+
+
 
         static bool ParseArguments(string[] args)
         {
@@ -328,12 +519,20 @@ HansoftExport -clocalhost:50257:""My Database"":sdk:sdk -pMyProject:b -rPBL:""Ma
                         oOptionFound = true;
                         break;
                     case "-h":
-                        if (oOptionFound)
-                            throw new ArgumentException("The -o option can only be specified once");
-                        if (pars.Length != 1)
-                            throw new ArgumentException("The -o option was not specified correctly");
-                        outputFileName = pars[0];
-                        oOptionFound = true;
+                        if (hOptionFound)
+                            throw new ArgumentException("The -h option can only be specified once");
+                        if (pars.Length < 1 || pars.Length > 2)
+                            throw new ArgumentException("The -h option was not specified correctly");
+                        if (!DateTime.TryParse(pars[0], out firstDate))
+                            throw new ArgumentException("The <first> parameter of the -h option was not specified correctly");
+                        if (pars.Length == 2)
+                        {
+                            if (!DateTime.TryParse(pars[1], out lastDate))
+                                throw new ArgumentException("The <last> parameter of the -h option was not specified correctly");
+                        }
+                        else
+                            lastDate = DateTime.Now.Date;
+                        hOptionFound = true;
                         break;
                     default:
                         throw new ArgumentException("An unsupported option was specifed: " + option);
